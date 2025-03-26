@@ -1,0 +1,58 @@
+
+
+services:
+
+#  gateway-service:
+#    build: ./gateway-service
+#    container_name: ${GATEWAY_SERVICE}
+#    depends_on:
+#      - product-service
+#      - invoice-service
+#    environment:
+#      DOCKER_PORT: ${DOCKER_GATEWAY_PORT}
+#      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
+#      DOCKER_PRODUCT_PORT: ${DOCKER_PRODUCT_PORT}
+#      DOCKER_INVOICE_PORT: ${DOCKER_INVOICE_PORT}
+#    ports:
+#      - "${DOCKER_GATEWAY_PORT}:${DOCKER_GATEWAY_PORT}"
+
+  product-service:
+    build: ./product-service
+    container_name: ${PRODUCT_SERVICE}
+    depends_on:
+      - mysql
+    environment:
+      DOCKER_PORT: ${DOCKER_PRODUCT_PORT}
+      DB_USER: ${PRODUCT_DB_USER}
+      DB_PASS: ${PRODUCT_DB_PASS}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/product_db
+    ports:
+      - "${DOCKER_PRODUCT_PORT}:${DOCKER_PRODUCT_PORT}"
+
+  invoice-service:
+    build: ./invoice-service
+    container_name: ${INVOICE_SERVICE}
+    depends_on:
+      - mysql
+    environment:
+      DOCKER_PORT: ${DOCKER_INVOICE_PORT}
+      DB_USER: ${INVOICE_DB_USER}
+      DB_PASS: ${INVOICE_DB_PASS}
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/invoice_db
+    ports:
+      - "${DOCKER_INVOICE_PORT}:${DOCKER_INVOICE_PORT}"
+
+  mysql:
+    image: mysql:8.0
+    container_name: ${DB_CONTAINER_NAME}
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
+
