@@ -10,6 +10,9 @@ import com.ims.repository.InvoiceRepository;
 import com.ims.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,10 +75,19 @@ public class InvoiceService {
         return mapToResponse(invoice);
     }
 
-    public List<InvoiceResponse> getAllInvoices() {
-        log.info("Fetching all invoices...");
-        List<Invoice> invoices = invoiceRepository.findAll();
-        return invoices.stream().map(this::mapToResponse).collect(Collectors.toList());
+    public Page<InvoiceResponse> getAllInvoices(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Invoice> invoice = invoiceRepository.findAll(pageable);
+        return invoice.map(invoice1 -> new InvoiceResponse(
+                invoice1.getId(),
+                invoice1.getInvoiceNumber(),
+                invoice1.getCreatedAt(),
+                invoice1.getItems(),
+                invoice1.getUserDetail()
+        ));
+//        log.info("Fetching all invoices...");
+//        List<Invoice> invoices = invoiceRepository.findAll();
+//        return invoices.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Transactional

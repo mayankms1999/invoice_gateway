@@ -21,5 +21,4 @@ public record ProductRequest(
         @NotNull(message = "Price cannot be null")
         @DecimalMin(value = "0.01", inclusive = true, message = "Price must be greater than 0")
         BigDecimal price
-) {
-}
+) {}

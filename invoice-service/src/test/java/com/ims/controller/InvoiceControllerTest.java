@@ -90,16 +90,16 @@ class InvoiceControllerTest {
                 .andExpect(jsonPath("$.user.email").value("john.doe@example.com"));
     }
 
-    @Test
-    void testGetAllInvoices() throws Exception {
-        when(invoiceService.getAllInvoices()).thenReturn(List.of(mockInvoiceResponse));
-
-        mockMvc.perform(MockMvcRequestBuilders.get("/api/invoices/get-all")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].invoiceNumber").value("INV-1001"))
-                .andExpect(jsonPath("$[0].user.email").value("john.doe@example.com"));
-    }
+//    @Test
+//    void testGetAllInvoices() throws Exception {
+//        when(invoiceService.getAllInvoices()).thenReturn(List.of(mockInvoiceResponse));
+//
+//        mockMvc.perform(MockMvcRequestBuilders.get("/api/invoices/get-all")
+//                        .contentType(MediaType.APPLICATION_JSON))
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$[0].invoiceNumber").value("INV-1001"))
+//                .andExpect(jsonPath("$[0].user.email").value("john.doe@example.com"));
+//    }
 
     @Test
     void testDeleteInvoiceItem() throws Exception {

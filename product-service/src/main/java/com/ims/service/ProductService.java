@@ -7,9 +7,9 @@ import com.ims.model.Product;
 import com.ims.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,9 +24,7 @@ public class ProductService {
                 .hsnCode(productRequest.hsnCode())
                 .price(productRequest.price())
                 .build();
-        Product savedProduct = productRepository.save(product); // Save returns an entity with ID
-
-        log.info("Product created: {}", savedProduct.getId()); // Log the correct ID
+        Product savedProduct = productRepository.save(product);
 
         return new ProductResponse(
                 savedProduct.getId(),
@@ -37,32 +35,36 @@ public class ProductService {
         );
     }
 
-    public List<ProductResponse> getAllProducts() {
-        return productRepository.findAll()
-                .stream()
-                .map(product -> new ProductResponse(product.getId(), product.getName(), product.getDescription(), product.getHsnCode(), product.getPrice()))
-                .toList();
+    public Page<ProductResponse> getAllProducts(int page, int size) {
+        Page<Product> products = productRepository.findAll(PageRequest.of(page, size));
+        return products.map(product -> new ProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getHsnCode(),
+                product.getPrice()
+        ));
     }
 
     public ProductResponse getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
-
         return new ProductResponse(product.getId(), product.getName(), product.getDescription(), product.getHsnCode(), product.getPrice());
     }
 
-    public List<ProductResponse> getProductsByName(String name) {
-        List<Product> products = productRepository.findAllByName(name);
-
+    public Page<ProductResponse> getProductsByName(String name, int page, int size) {
+        Page<Product> products = productRepository.findAllByName(name, PageRequest.of(page, size));
         if (products.isEmpty()) {
             throw new ResourceNotFoundException("No product found with name: " + name);
         }
-
-        return products.stream()
-                .map(product -> new ProductResponse(product.getId(), product.getName(), product.getDescription(), product.getHsnCode(), product.getPrice()))
-                .toList();
+        return products.map(product -> new ProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getHsnCode(),
+                product.getPrice()
+        ));
     }
-
 
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {

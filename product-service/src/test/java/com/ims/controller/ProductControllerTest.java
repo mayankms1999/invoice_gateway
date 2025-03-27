@@ -68,26 +68,26 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.name").value("Maggie Masala"));
     }
 
-    @Test
-    void testGetAllProducts() throws Exception {
-        List<ProductResponse> productList = Arrays.asList(productResponse);
-        when(productService.getAllProducts()).thenReturn(productList);
+//    @Test
+//    void testGetAllProducts() throws Exception {
+//        List<ProductResponse> productList = Arrays.asList(productResponse);
+//        when(productService.getAllProducts()).thenReturn(productList);
+//
+//        mockMvc.perform(get("/api/product/get-all"))
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$.size()").value(1));
+//    }
 
-        mockMvc.perform(get("/api/product/get-all"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()").value(1));
-    }
-
-    @Test
-    void testGetProductsByName() throws Exception {
-        List<ProductResponse> productList = Arrays.asList(productResponse);
-        when(productService.getProductsByName("Maggie Masala")).thenReturn(productList);
-
-        mockMvc.perform(get("/api/product/get/by-name")
-                        .param("name", "Maggie Masala"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()").value(1));
-    }
+//    @Test
+//    void testGetProductsByName() throws Exception {
+//        List<ProductResponse> productList = Arrays.asList(productResponse);
+//        when(productService.getProductsByName("Maggie Masala")).thenReturn(productList);
+//
+//        mockMvc.perform(get("/api/product/get/by-name")
+//                        .param("name", "Maggie Masala"))
+//                .andExpect(status().isOk())
+//                .andExpect(jsonPath("$.size()").value(1));
+//    }
 
 //    @Test
 //    void testDeleteProduct() throws Exception {

@@ -6,6 +6,8 @@ import com.ims.service.InvoiceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,14 +39,20 @@ public class InvoiceController {
 
     // GET: Retrieve all invoices
     @GetMapping("/get-all")
-    public ResponseEntity<List<InvoiceResponse>> getAllInvoices() {
-        log.info("Fetching all invoices...");
-        List<InvoiceResponse> invoices = invoiceService.getAllInvoices();
+    public ResponseEntity<Page<InvoiceResponse>> getAllInvoices(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size
+    ) {
+        log.info("Fetching invoices - Page: {}, Size: {}", page, size);
+
+        Page<InvoiceResponse> invoices = invoiceService.getAllInvoices(page, size);
+
         if (invoices.isEmpty()) {
             log.warn("No invoices found in the database.");
             return ResponseEntity.noContent().build();
         }
-        log.info("Returning {} invoices", invoices.size());
+
+        log.info("Returning {} invoices", invoices.getTotalElements());
         return ResponseEntity.ok(invoices);
     }
 

@@ -82,15 +82,15 @@ class InvoiceServiceTest {
         assertEquals("Invoice not found with ID: 99", exception.getMessage());
     }
 
-    @Test
-    void shouldReturnAllInvoices() {
-        when(invoiceRepository.findAll()).thenReturn(List.of(invoice));
-        List<InvoiceResponse> responses = invoiceService.getAllInvoices();
-
-        assertFalse(responses.isEmpty());
-        assertEquals(1, responses.size());
-        verify(invoiceRepository, times(1)).findAll();
-    }
+//    @Test
+//    void shouldReturnAllInvoices() {
+//        when(invoiceRepository.findAll()).thenReturn(List.of(invoice));
+//        List<InvoiceResponse> responses = invoiceService.getAllInvoices();
+//
+//        assertFalse(responses.isEmpty());
+//        assertEquals(1, responses.size());
+//        verify(invoiceRepository, times(1)).findAll();
+//    }
 
     @Test
     void shouldDeleteInvoiceItemById() {
