@@ -1,0 +1,186 @@
+name: CI Pipeline (Dev)
+
+on:
+  push:
+     branches: [dev]
+  pull_request:
+     branches: [dev]
+      
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+       - name: Checkout Code
+         uses: actions/checkout@v3
+
+       - name: Set Up Java
+         uses: actions/setup-java@v3
+         with:
+           distribution: 'temurin'
+           java-version: '21'
+
+       - name: Install Maven Dependencies
+         run: mvn clean install
+
+       - name: Run Unit Tests
+         run: mvn test
+
+  azureVM:
+     runs-on: ubuntu-latest
+     needs: [tests]
+     steps:
+       - name: Login to Azure
+         uses: azure/login@v1
+         with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+       - name: Start Azure VM
+         run: |
+           az vm start --resource-group demo-pipelining_group --name demo-pipelining
+
+         
+  dependency-track:
+    runs-on: ubuntu-latest 
+    needs: [azureVM]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Generate SBOM with CycloneDX
+        run: mvn cyclonedx:makeAggregateBom
+
+      - name: Check if SBOM Exists
+        run: ls -l target/
+
+      - name: Move SBOM to Root Directory
+        run: mv target/bom.json bom.json
+
+      - name: Upload SBOM to Dependency-Track
+        uses: DependencyTrack/gh-upload-sbom@v3
+        with:
+          serverHostname: '40.82.200.144'
+          port: ${{ secrets.DTRACK_PORT }}
+          protocol: ${{ secrets.DTRACK_PROTOCOL }}
+          apiKey: ${{ secrets.DTRACK_API_KEY }}
+          project: ${{ secrets.PROJECT_ID }}
+          projectName: 'demopipeline-backend'
+          projectVersion: '1.0'
+          bomFilename: "target/bom.xml"
+
+  sonarcloud:
+    runs-on: ubuntu-latest
+    needs: [azureVM]
+    steps:
+      - name: Start SonarQube and PostgreSQL on Azure VM
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AZURE_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no demopipelining@40.82.200.144 \
+            "sudo systemctl start postgresql && \
+             sudo systemctl start sonarqube && \
+             echo 'Waiting for SonarQube to become ready...' && \
+             until curl -sSf --retry 12 --retry-all-errors --retry-delay 10 http://localhost:9000/api/system/status | grep -q '"UP"'; do \
+               sleep 10; \
+             done"
+        env:
+          AZURE_SSH_PRIVATE_KEY: ${{ secrets.AZURE_SSH_PRIVATE_KEY }}
+      
+      - uses: actions/checkout@v4
+      - name: Set Up Java
+        uses: actions/setup-java@v3
+        with:
+           distribution: 'temurin'
+           java-version: '21'
+
+      - name: Install Maven Dependencies
+        run: mvn clean install
+      - name: Install SonarScanner
+        run: |
+          wget "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip"
+          unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+          sudo mv sonar-scanner-5.0.1.3006-linux /opt/sonar-scanner
+          echo "/opt/sonar-scanner/bin" >> $GITHUB_PATH
+      
+      - name: Run Sonar Scanner
+        run: |
+          mvn clean verify sonar:sonar \
+                     -Dsonar.projectKey=demo-pipeline-backend \
+                     -Dsonar.host.url=http://40.82.200.144:9000 \
+                     -Dsonar.login=${{secrets.SONAR_TOKEN}}
+    
+
+  azurevm-stop:
+    runs-on: ubuntu-latest
+    needs: [dependency-track, sonarcloud]
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Stop Azure VM
+        if: always()
+        run: |
+          az vm deallocate --resource-group demo-pipelining_group --name demo-pipelining
+          
+  deploy-test:
+    runs-on: ubuntu-latest
+    needs: [azurevm-stop]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH for Azure VM
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AZURE_SSH_BACKEND_KEY" > ~/.ssh/id_rsa_azure
+          chmod 600 ~/.ssh/id_rsa_azure
+          ssh-keyscan -H ${{ secrets.AZURE_VM_IP }} >> ~/.ssh/known_hosts
+        env:
+          AZURE_SSH_BACKEND_KEY: ${{ secrets.AZURE_SSH_BACKEND_KEY }}
+
+      - name: Clone Backend Repo
+        env:
+          AZURE_SSH_BACKEND_KEY: ${{ secrets.AZURE_SSH_BACKEND_KEY }}
+          AZURE_VM_USERNAME: ${{ secrets.AZURE_VM_USERNAME }}
+          AZURE_VM_IP: ${{ secrets. AZURE_VM_IP }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AZURE_SSH_BACKEND_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.AZURE_VM_USERNAME }}@${{ secrets.AZURE_VM_IP }} \
+            "cd .ssh/ && \
+             rm -rf config && \
+             cd ../ && \
+             chmod 600 ~/.ssh/id_rsa && \
+             echo -e 'Host github.com\n  HostName github.com\n  IdentityFile ~/.ssh/id_rsa' >> ~/.ssh/config && \
+             git clone git@github.com:${{ github.repository }}.git test || \
+             (cd test && git pull origin dev)"
+             
+  start_backend_test_server:
+    runs-on: ubuntu-latest
+    needs: [deploy-test]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Start Backend
+        env:
+          AZURE_SSH_BACKEND_KEY: ${{ secrets.AZURE_SSH_BACKEND_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AZURE_SSH_BACKEND_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.AZURE_VM_USERNAME }}@${{ secrets.AZURE_VM_IP }} \
+            "cd test && \
+             sudo mvn clean install -DskipTests && \
+             sudo docker-compose up -d --build" &
+             
+      - name: Wait for Backend to be Available
+        run: |
+          until curl -s http://${{ secrets.AZURE_VM_IP }}:8081/api/product >/dev/null; do
+            echo "Waiting for Backend..."
+            sleep 5
+          done
+
+
